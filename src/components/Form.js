@@ -1,71 +1,103 @@
 import React, { useState } from "react";
+import Modal from "react-modal";
+
 import "./Form.css";
+Modal.setAppElement("#root");
 
 const Form = () => {
   const [text, setText] = useState("");
-  const [mediaFiles, setMediaFiles] = useState([]);
   const [dateTime, setDateTime] = useState("");
+  const [facebookChecked, setFacebookChecked] = useState(true);
+  const [linkedinChecked, setLinkedinChecked] = useState(true);
+  const [twitterChecked, setTwitterChecked] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newText, setNewText] = useState("");
+  const [modalTitle, setModalTitle] = useState("");
 
   const handleTextChange = (event) => {
     setText(event.target.value);
-  };
-
-  const handleMediaFilesChange = (event) => {
-    const files = event.target.files;
-    const fileData = [];
-  
-    for (let i = 0; i < files.length; i++) {
-      const reader = new FileReader();
-      reader.readAsDataURL(files[i]);
-      reader.onload = () => {
-        fileData.push({
-          name: files[i].name,
-          type: files[i].type,
-          data: reader.result.split(',')[1],
-        });
-        setMediaFiles(fileData);
-      };
-    }
   };
 
   const handleDateTimeChange = (event) => {
     setDateTime(event.target.value);
   };
 
-  const handleSubmit = (event) => {
-    console.log(text);
-    console.log(mediaFiles);
-    console.log(dateTime);
+  const handleOpenModal = () => {
+    setModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+  };
+
+  const summerize = () => {
+    fetch("http://127.0.0.1:8000/posting_app/summerize/", {
+      method: "POST",
+      body: JSON.stringify({ text: text }),
+    })
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        setNewText(data["summary"]);
+        setModalTitle("Summary of given text");
+        setModalVisible(true);
+        setText(data["summary"]);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  };
+
+  const rephrase = () => {
+    fetch("http://127.0.0.1:8000/posting_app/rephrase/", {
+      method: "POST",
+      body: JSON.stringify({ text: text }),
+    })
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        setNewText(data["rephrase"]);
+        setModalTitle("Rephrase of given text");
+        setModalVisible(true);
+        setText(data["rephrase"]);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
   };
 
   const submit_form = (event) => {
-  event.preventDefault();
+    event.preventDefault();
 
-  const form = new FormData();
-  form.append("text", text);
-  form.append("dateTime", dateTime);
+    const form = new FormData();
+    form.append("text", text);
+    form.append("dateTime", dateTime);
 
-  for (let i = 0; i < mediaFiles.length; i++) {
-    form.append("mediaFiles", mediaFiles[i]);
-  }
-  console.log(form.get("mediaFiles"))
-
-  fetch("http://127.0.0.1:8000/posting_app/post_message/", {
-    method: "POST",
-    body: form,
-  })
-    .then((response) => {
-      console.log(response);
-      return response.json();
+    fetch("http://127.0.0.1:8000/posting_app/post_message/", {
+      method: "POST",
+      body: JSON.stringify({
+        text: text,
+        facebook: facebookChecked,
+        twitter: twitterChecked,
+        linkedin: linkedinChecked,
+        date_time: dateTime,
+      }),
     })
-    .then((data) => {
-      console.log(data);
-    })
-    .catch((error) => {
-      console.error(error);
-    });
-};
-
+      .then((response) => {
+        console.log(response);
+        return response.json();
+      })
+      .then((data) => {
+        alert(data["message"]);
+        setText("");
+        setDateTime("");
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  };
 
   const getCurrentDateTime = () => {
     const now = new Date();
@@ -78,57 +110,71 @@ const Form = () => {
   };
 
   return (
-    <form className="form">
-      <div className="form-group">
-        <label htmlFor="text" className="form-label">
-          Text:
-        </label>
-        <textarea
-          name="text"
-          value={text}
-          onChange={handleTextChange}
-          className="form-input"
-        />
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="mediaFiles" className="form-label">
-          Media files:
-        </label>
-        <input
-          type="file"
-          name="mediaFiles"
-          multiple
-          onChange={handleMediaFilesChange}
-          className="form-input"
-        />
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="dateTime" className="form-label">
-          Date and Time:
-        </label>
-        <input
-          type="datetime-local"
-          name="dateTime"
-          value={dateTime || getCurrentDateTime()}
-          onChange={handleDateTimeChange}
-          className="form-input"
-        />
-      </div>
-
-      <div className="button-group">
-        <button className="submit-button" onClick={submit_form}>
-          Submit
+    <>
+      <Modal isOpen={modalVisible} onRequestClose={handleCloseModal}>
+        <h2>{modalTitle}</h2>
+        <p>{newText}</p>
+        <button
+          onClick={() => {
+            setText(newText);
+            handleCloseModal();
+          }}
+          className="bg-primary text-white"
+          style={{ marginRight: 50, height: 50, borderColor: "blue" }}
+        >
+          Replace this
         </button>
-        <button className="later-use-button" type="button">
-          Later Use 1
+        <button onClick={handleCloseModal} className="bg-danger text-white" style={{ height: 50 }}>
+          Don't Replace
         </button>
-        <button className="later-use-button" type="button">
-          Later Use 2
-        </button>
-      </div>
-    </form>
+      </Modal>
+      <form className="form" onSubmit={submit_form}>
+        <div className="form-group">
+          <label htmlFor="text" className="form-label">
+            Text:
+          </label>
+          <textarea name="text" value={text} onChange={handleTextChange} className="form-input" required />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="social-media" className="form-label">
+            Social Media:
+          </label>
+          <div className="checkbox-group">
+            <label htmlFor="facebook" className="checkbox-label" style={{ marginRight: 10 }}>
+              <input type="checkbox" name="facebook" value="Facebook" className="checkbox-input" checked={facebookChecked} onClick={() => setFacebookChecked(!facebookChecked)} />
+              Facebook
+            </label>
+            <label htmlFor="linkedin" className="checkbox-label" style={{ marginRight: 10 }}>
+              <input type="checkbox" name="linkedin" value="LinkedIn" className="checkbox-input" checked={linkedinChecked} onClick={() => setLinkedinChecked(!linkedinChecked)} />
+              LinkedIn
+            </label>
+            <label htmlFor="twitter" className="checkbox-label">
+              <input type="checkbox" name="twitter" value="Twitter" className="checkbox-input" checked={twitterChecked} onClick={() => setTwitterChecked(!twitterChecked)} />
+              Twitter
+            </label>
+          </div>
+        </div>
+        <div className="form-group">
+          <label htmlFor="dateTime" className="form-label">
+            Date and Time:
+          </label>
+          <input type="datetime-local" name="dateTime" value={dateTime || getCurrentDateTime()} onChange={handleDateTimeChange} className="form-input" min={new Date().toISOString().slice(0, 16)} />
+        </div>
+
+        <div className="button-group">
+          <button className="submit-button" type="submit">
+            Submit
+          </button>
+          <button className="later-use-button" type="button" onClick={summerize}>
+            Summerize
+          </button>
+          <button className="later-use-button" type="button" onClick={rephrase}>
+            Rephrase
+          </button>
+        </div>
+      </form>
+    </>
   );
 };
 

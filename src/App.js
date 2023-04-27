@@ -1,7 +1,6 @@
-
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Tabs from "./components/tabs"
+import Tabs from "./components/tabs";
 
 export default function App() {
   return (
